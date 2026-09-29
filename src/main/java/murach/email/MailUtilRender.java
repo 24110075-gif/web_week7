@@ -10,7 +10,7 @@ import java.util.Base64;
 
 public class MailUtilRender {
 
-    private static String getApiKey() {
+    private static String getResendKey() {
         String apiKey = System.getenv("RESEND_API_KEY");
         if (apiKey != null && !apiKey.trim().isEmpty()) {
             return apiKey.trim();
@@ -24,32 +24,28 @@ public class MailUtilRender {
             throws MessagingException {
 
         try {
-            String apiKey = getApiKey();
-            String cleanTo = (to != null && !to.trim().isEmpty()) ? to.trim() : "cutcho385@gmail.com";
-            String cleanFrom = "onboarding@resend.dev";
+            String cleanTo = (to != null) ? to.trim() : "";
+            String cleanFrom = (from != null && from.contains("@")) ? from.trim() : "cutcho385@gmail.com";
             String cleanSubject = escapeJson(subject);
             String cleanBody = escapeJson(body);
 
-            HttpResponse<String> response = executeResendRequest(apiKey, cleanFrom, cleanTo, cleanSubject, cleanBody, bodyIsHTML);
-
-            if (response.statusCode() == 403 && response.body() != null && response.body().contains("only send testing emails")) {
-                String testSubject = escapeJson("[Chế độ Test - Gửi đến: " + cleanTo + "] " + subject);
-                String testBody = escapeJson("<b>[Lưu ý: Tài khoản Resend Test đang chuyển tiếp email này về hộp thư đăng ký]</b><br><br>" + body);
-                response = executeResendRequest(apiKey, cleanFrom, "cutcho385@gmail.com", testSubject, testBody, true);
+            String brevoKey = System.getenv("BREVO_API_KEY");
+            if (brevoKey != null && !brevoKey.trim().isEmpty()) {
+                sendViaBrevo(cleanTo, cleanFrom, cleanSubject, cleanBody, bodyIsHTML, brevoKey.trim());
+                return;
             }
 
-            if (response.statusCode() >= 400) {
-                throw new MessagingException("Lỗi Resend API (Mã " + response.statusCode() + "): " + response.body());
-            }
+            sendViaResend(cleanTo, cleanSubject, cleanBody, bodyIsHTML);
 
         } catch (Exception e) {
-            throw new MessagingException("Không thể gửi mail qua Resend HTTP API: " + e.getMessage(), e);
+            throw new MessagingException(e.getMessage(), e);
         }
     }
 
-    private static HttpResponse<String> executeResendRequest(String apiKey, String from, String to, String subject, String body, boolean bodyIsHTML) throws Exception {
+    private static void sendViaResend(String to, String subject, String body, boolean bodyIsHTML) throws Exception {
+        String apiKey = getResendKey();
         String jsonPayload = "{"
-                + "\"from\":\"" + from + "\","
+                + "\"from\":\"onboarding@resend.dev\","
                 + "\"to\":[\"" + to + "\"],"
                 + "\"subject\":\"" + subject + "\","
                 + (bodyIsHTML ? "\"html\":\"" : "\"text\":\"") + body + "\""
@@ -63,7 +59,38 @@ public class MailUtilRender {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() >= 400) {
+            if (response.body() != null && response.body().contains("only send testing emails")) {
+                throw new MessagingException("Tài khoản Resend miễn phí chỉ cho phép gửi về email đăng ký (cutcho385@gmail.com). Để gửi tới email khác, cần thêm domain tại resend.com/domains hoặc dùng API Brevo.");
+            }
+            throw new MessagingException("Lỗi Resend API (Mã " + response.statusCode() + "): " + response.body());
+        }
+    }
+
+    private static void sendViaBrevo(String to, String from, String subject, String body, boolean bodyIsHTML, String apiKey) throws Exception {
+        String jsonPayload = "{"
+                + "\"sender\":{\"email\":\"" + from + "\"},"
+                + "\"to\":[{\"email\":\"" + to + "\"}],"
+                + "\"subject\":\"" + subject + "\","
+                + (bodyIsHTML ? "\"htmlContent\":\"" : "\"textContent\":\"") + body + "\""
+                + "}";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                .header("accept", "application/json")
+                .header("api-key", apiKey)
+                .header("content-type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() >= 400) {
+            throw new MessagingException("Lỗi Brevo API (Mã " + response.statusCode() + "): " + response.body());
+        }
     }
 
     private static String escapeJson(String text) {
