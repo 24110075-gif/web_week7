@@ -1,0 +1,7 @@
+.env
+target/
+tomcat.8080/
+*.log
+.DS_Store
+.idea/
+*.iml
