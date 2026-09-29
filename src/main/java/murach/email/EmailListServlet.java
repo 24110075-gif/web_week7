@@ -46,55 +46,63 @@ public class EmailListServlet extends HttpServlet {
             } else {
                 email = email.trim();
                 
-                User existingUser = UserDB.selectUser(email);
-                
-                if (existingUser != null) {
-                    message = "Xác thực thành công! Chào mừng trở lại " 
-                            + existingUser.getFirstName() + " " + existingUser.getLastName() 
-                            + ". Quyền truy cập SQL Gateway đã được mở khóa.";
+                try {
+                    User existingUser = UserDB.selectUser(email);
                     
-                    session.setAttribute("user", existingUser);
-                    session.setAttribute("emailVerified", true);
-                } else {
-                    if (firstName == null || firstName.trim().isEmpty()) {
-                        firstName = "Thành viên";
+                    if (existingUser != null) {
+                        message = "Xác thực thành công! Chào mừng trở lại " 
+                                + existingUser.getFirstName() + " " + existingUser.getLastName() 
+                                + ". Quyền truy cập SQL Gateway đã được mở khóa.";
+                        
+                        session.setAttribute("user", existingUser);
+                        session.setAttribute("emailVerified", true);
+                    } else {
+                        if (firstName == null || firstName.trim().isEmpty()) {
+                            firstName = "Thành viên";
+                        }
+                        if (lastName == null || lastName.trim().isEmpty()) {
+                            lastName = "Mới";
+                        }
+
+                        User newUser = new User(firstName.trim(), lastName.trim(), email);
+                        UserDB.insert(newUser);
+                        
+                        message = "Tài khoản chưa có trong hệ thống. Đã tự động đăng ký mới và mở khóa SQL Gateway!";
+
+                        String to = email;
+                        String from = "cutcho385@gmail.com";
+                        String subject = "Xác thực tài khoản thành công - Murach SQL Gateway";
+                        String body = "Xin chào " + newUser.getFirstName() + " " + newUser.getLastName() + ",\n\n" +
+                                "Cảm ơn bạn đã đăng ký tham gia hệ thống của chúng tôi.\n" +
+                                "Tài khoản của bạn đã được kích hoạt và quyền sử dụng SQL Gateway đã sẵn sàng.\n\n" +
+                                "Trân trọng,\n" +
+                                "Murach's Java Servlets and JSP";
+
+                        try {
+                            MailUtil.sendMail(to, from, subject, body, false);
+                            request.setAttribute("emailStatus", "Email thông báo đã gửi thành công tới " + to);
+                        } catch (MessagingException e) {
+                            String emailError = "Lỗi gửi email: " + e.getMessage();
+                            request.setAttribute("emailError", emailError);
+                            System.err.println(emailError);
+                        }
+
+                        session.setAttribute("user", newUser);
+                        session.setAttribute("emailVerified", true);
                     }
-                    if (lastName == null || lastName.trim().isEmpty()) {
-                        lastName = "Mới";
-                    }
-
-                    User newUser = new User(firstName.trim(), lastName.trim(), email);
-                    UserDB.insert(newUser);
-                    
-                    message = "Tài khoản chưa có trong hệ thống. Đã tự động đăng ký mới và mở khóa SQL Gateway!";
-
-                    String to = email;
-                    String from = "cutcho385@gmail.com";
-                    String subject = "Xác thực tài khoản thành công - Murach SQL Gateway";
-                    String body = "Xin chào " + newUser.getFirstName() + " " + newUser.getLastName() + ",\n\n" +
-                            "Cảm ơn bạn đã đăng ký tham gia hệ thống của chúng tôi.\n" +
-                            "Tài khoản của bạn đã được kích hoạt và quyền sử dụng SQL Gateway đã sẵn sàng.\n\n" +
-                            "Trân trọng,\n" +
-                            "Murach's Java Servlets and JSP";
-
-                    try {
-                        MailUtil.sendMail(to, from, subject, body, false);
-                        request.setAttribute("emailStatus", "Email thông báo đã gửi thành công tới " + to);
-                    } catch (MessagingException e) {
-                        String emailError = "Lỗi gửi email: " + e.getMessage();
-                        request.setAttribute("emailError", emailError);
-                        System.err.println(emailError);
-                    }
-
-                    session.setAttribute("user", newUser);
-                    session.setAttribute("emailVerified", true);
+                } catch (Exception e) {
+                    message = "Lỗi kết nối cơ sở dữ liệu: " + e.getMessage();
+                    System.err.println("Database error in EmailListServlet: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
             request.setAttribute("message", message);
         }
 
-        List<User> users = UserDB.selectUsers();
-        request.setAttribute("users", users);
+        try {
+            List<User> users = UserDB.selectUsers();
+            request.setAttribute("users", users);
+        } catch (Exception ignored) {}
 
         getServletContext()
                 .getRequestDispatcher(url)
