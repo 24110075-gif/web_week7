@@ -34,7 +34,6 @@ public class DBUtil {
         return "02052010";
     }
 
-    // JPA EntityManagerFactory using Jakarta Persistence
     private static EntityManagerFactory emf;
 
     private static java.util.Map<String, String> getJpaProperties() {
@@ -68,7 +67,6 @@ public class DBUtil {
     }
 
     public static Connection getConnection() throws SQLException {
-        // 1. Try JNDI DataSource first (Tomcat context.xml)
         try {
             InitialContext ic = new InitialContext();
             DataSource ds = (DataSource) ic.lookup("java:/comp/env/jdbc/murach");
@@ -76,10 +74,8 @@ public class DBUtil {
                 return ds.getConnection();
             }
         } catch (NamingException | SQLException e) {
-            // JNDI not available or error, fall back to direct DriverManager connection
         }
 
-        // 2. Direct PostgreSQL connection fallback
         return DriverManager.getConnection(getDbUrl(), getDbUser(), getDbPass());
     }
 

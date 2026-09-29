@@ -24,14 +24,12 @@ public class EmailListServlet extends HttpServlet {
         HttpSession session = request.getSession();
         String url = "/index.jsp";
 
-        // Lấy action từ request
         String action = request.getParameter("action");
         if (action == null) {
             action = "join";
         }
 
         if (action.equals("logout")) {
-            // Đăng xuất: xóa session người dùng
             session.removeAttribute("user");
             session.removeAttribute("emailVerified");
             session.invalidate();
@@ -48,11 +46,9 @@ public class EmailListServlet extends HttpServlet {
             } else {
                 email = email.trim();
                 
-                // 1. Kiểm tra email trong Database bằng JPA
                 User existingUser = UserDB.selectUser(email);
                 
                 if (existingUser != null) {
-                    // Email ĐÃ TỒN TẠI -> Cho phép vào sử dụng SQL Gateway
                     message = "Xác thực thành công! Chào mừng trở lại " 
                             + existingUser.getFirstName() + " " + existingUser.getLastName() 
                             + ". Quyền truy cập SQL Gateway đã được mở khóa.";
@@ -60,7 +56,6 @@ public class EmailListServlet extends HttpServlet {
                     session.setAttribute("user", existingUser);
                     session.setAttribute("emailVerified", true);
                 } else {
-                    // Email CHƯA TỒN TẠI -> Đăng ký mới qua JPA & Gửi mail qua Jakarta Mail
                     if (firstName == null || firstName.trim().isEmpty()) {
                         firstName = "Thành viên";
                     }
@@ -69,11 +64,10 @@ public class EmailListServlet extends HttpServlet {
                     }
 
                     User newUser = new User(firstName.trim(), lastName.trim(), email);
-                    UserDB.insert(newUser); // Lưu vào DB qua JPA
+                    UserDB.insert(newUser);
                     
                     message = "Tài khoản chưa có trong hệ thống. Đã tự động đăng ký mới và mở khóa SQL Gateway!";
 
-                    // Gửi email xác nhận qua Jakarta Mail (Gmail App Password)
                     String to = email;
                     String from = "cutcho385@gmail.com";
                     String subject = "Xác thực tài khoản thành công - Murach SQL Gateway";
@@ -87,7 +81,7 @@ public class EmailListServlet extends HttpServlet {
                         MailUtil.sendMail(to, from, subject, body, false);
                         request.setAttribute("emailStatus", "Email thông báo đã gửi thành công tới " + to);
                     } catch (MessagingException e) {
-                        String emailError = "Lỗi gửi email (kiểm tra tài khoản/mật khẩu ứng dụng Gmail): " + e.getMessage();
+                        String emailError = "Lỗi gửi email: " + e.getMessage();
                         request.setAttribute("emailError", emailError);
                         System.err.println(emailError);
                     }

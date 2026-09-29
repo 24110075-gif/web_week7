@@ -8,13 +8,6 @@ import murach.data.DBUtil;
 
 public class SQLGatewayDB {
 
-    /**
-     * Executes the given SQL statement using a PreparedStatement.
-     * Separated from SQLGatewayServlet as required.
-     *
-     * @param sqlStatement The SQL query or update command.
-     * @return HTML representation of results or execution status.
-     */
     public static String executeSQL(String sqlStatement) {
         if (sqlStatement == null || sqlStatement.trim().isEmpty()) {
             return "<div class=\"result-box result-info\">Vui lòng nhập câu lệnh SQL để thực thi.</div>";
@@ -32,10 +25,8 @@ public class SQLGatewayDB {
                 return "<div class=\"result-box result-error\">Không thể kết nối đến cơ sở dữ liệu PostgreSQL.</div>";
             }
 
-            // Using PreparedStatement instead of Statement
             ps = connection.prepareStatement(sqlStatement);
 
-            // Determine if the statement is a SELECT query
             if (sqlStatement.length() >= 6) {
                 String sqlType = sqlStatement.substring(0, 6);
 
@@ -56,7 +47,7 @@ public class SQLGatewayDB {
                     }
                 }
             } else {
-                sqlResult = "<div class=\"result-box result-warning\">Câu lệnh SQL không hợp lệ (độ dài quá ngắn).</div>";
+                sqlResult = "<div class=\"result-box result-warning\">Câu lệnh SQL không hợp lệ.</div>";
             }
         } catch (SQLException e) {
             sqlResult = "<div class=\"result-box result-error\">"

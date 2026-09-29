@@ -19,47 +19,36 @@ import jakarta.mail.internet.MimeMessage;
 
 public class MailUtil {
 
-    /**
-     * Gửi email tự động. Hỗ trợ đa kênh:
-     * 1. Resend HTTP API (Cho Render / Koyeb)
-     * 2. Brevo HTTP API (Cho Render / Koyeb)
-     * 3. Jakarta Mail SMTP (Gmail App Password)
-     */
     public static void sendMail(String to, String from,
             String subject, String body, boolean isBodyHTML)
             throws MessagingException {
 
-        // 1. Thử gửi qua Resend HTTP API (Ưu tiên nhất trên Render vì không bị chặn cổng SMTP)
         String resendKey = getEnv("RESEND_API_KEY");
         if (resendKey != null && !resendKey.isEmpty()) {
             try {
                 sendViaResend(to, from, subject, body, isBodyHTML, resendKey);
-                System.out.println("Email đã gửi thành công qua Resend HTTP API!");
                 return;
             } catch (Exception e) {
-                System.err.println("Gửi mail qua Resend API thất bại, thử phương thức tiếp theo: " + e.getMessage());
+                System.err.println("Gửi mail qua Resend API thất bại: " + e.getMessage());
             }
         }
 
-        // 2. Thử gửi qua Brevo HTTP API
         String brevoKey = getEnv("BREVO_API_KEY");
         if (brevoKey != null && !brevoKey.isEmpty()) {
             try {
                 sendViaBrevo(to, from, subject, body, isBodyHTML, brevoKey);
-                System.out.println("Email đã gửi thành công qua Brevo HTTP API!");
                 return;
             } catch (Exception e) {
-                System.err.println("Gửi mail qua Brevo API thất bại, thử phương thức tiếp theo: " + e.getMessage());
+                System.err.println("Gửi mail qua Brevo API thất bại: " + e.getMessage());
             }
         }
 
-        // 3. Fallback: Gửi qua Gmail Jakarta Mail SMTP
         sendViaSmtp(to, from, subject, body, isBodyHTML);
     }
 
     private static void sendViaResend(String to, String from, String subject, String body, boolean isHTML, String apiKey) throws Exception {
         String cleanTo = to.trim();
-        String cleanFrom = (from != null && from.contains("@")) ? from.trim() : "onboarding@resend.dev";
+        String cleanFrom = "onboarding@resend.dev";
         String cleanSubject = escapeJson(subject);
         String cleanBody = escapeJson(body);
 

@@ -16,10 +16,8 @@ public class MailUtilRender {
             throws MessagingException {
 
         try {
-            // 1. Đọc API Key từ Biến môi trường trên Render (RESEND_API_KEY)
             String apiKey = System.getenv("RESEND_API_KEY");
             if (apiKey == null || apiKey.trim().isEmpty()) {
-                // Thử đọc từ .env file
                 File envFile = new File(".env");
                 if (envFile.exists()) {
                     try (BufferedReader reader = new BufferedReader(new FileReader(envFile))) {
@@ -41,9 +39,7 @@ public class MailUtilRender {
                 throw new MessagingException("Thiếu biến môi trường RESEND_API_KEY.");
             }
 
-            // 2. Làm sạch dữ liệu truyền vào tránh lỗi JSON
             String cleanTo = to.trim();
-            // Đối với Resend API miễn phí, địa chỉ người gửi dùng onboarding@resend.dev
             String cleanFrom = "onboarding@resend.dev";
             String cleanSubject = subject.replace("\\", "\\\\").replace("\"", "\\\"");
             String cleanBody = body.replace("\\", "\\\\")
@@ -51,7 +47,6 @@ public class MailUtilRender {
                                    .replace("\n", "\\n")
                                    .replace("\r", "");
 
-            // 3. Đóng gói dữ liệu dạng JSON cho Resend API
             String jsonPayload = "{"
                     + "\"from\":\"" + cleanFrom + "\","
                     + "\"to\":[\"" + cleanTo + "\"],"
@@ -59,7 +54,6 @@ public class MailUtilRender {
                     + (bodyIsHTML ? "\"html\":\"" : "\"text\":\"") + cleanBody + "\""
                     + "}";
 
-            // 4. Gọi Resend API qua Cổng 443 (HTTPS)
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.resend.com/emails"))
@@ -68,7 +62,6 @@ public class MailUtilRender {
                     .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                     .build();
 
-            // 5. Gửi request và kiểm tra phản hồi
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() >= 400) {
