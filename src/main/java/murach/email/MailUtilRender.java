@@ -36,16 +36,13 @@ public class MailUtilRender {
             }
 
             if (apiKey == null || apiKey.trim().isEmpty()) {
-                throw new MessagingException("Thiếu biến môi trường RESEND_API_KEY.");
+                throw new MessagingException("Chưa cấu hình biến môi trường RESEND_API_KEY trên Render.");
             }
 
-            String cleanTo = to.trim();
+            String cleanTo = to != null ? to.trim() : "";
             String cleanFrom = "onboarding@resend.dev";
-            String cleanSubject = subject.replace("\\", "\\\\").replace("\"", "\\\"");
-            String cleanBody = body.replace("\\", "\\\\")
-                                   .replace("\"", "\\\"")
-                                   .replace("\n", "\\n")
-                                   .replace("\r", "");
+            String cleanSubject = escapeJson(subject);
+            String cleanBody = escapeJson(body);
 
             String jsonPayload = "{"
                     + "\"from\":\"" + cleanFrom + "\","
@@ -71,5 +68,13 @@ public class MailUtilRender {
         } catch (Exception e) {
             throw new MessagingException("Không thể gửi mail qua Resend HTTP API: " + e.getMessage(), e);
         }
+    }
+
+    private static String escapeJson(String text) {
+        if (text == null) return "";
+        return text.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "");
     }
 }
